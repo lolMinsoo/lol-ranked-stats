@@ -1,6 +1,8 @@
 import requests
 import json
 import csv
+from urllib.request import urlopen
+from bs4 import BeautifulSoup
 from datetime import datetime
 
 API_KEY = ''
@@ -12,12 +14,22 @@ current_date = datetime.today().strftime('%Y-%m-%d')
 def main():
 	print('------------------------------')
 	print('1. Get ranked data')
+	print('2. Get tournament data')
+	user_response = input()
 	
 	# TODO: Need to implement checks
-	if input() == '1':
+	if user_response == '1':
+		_print_regions()
 		region = input('Region: ')
 		print(region)
 		get_ranked_data(API_KEY, region)
+	elif user_response == '2':
+		url = input('Enter valid Leaguepedia Tournament Match History Url: ')
+		tournament_data(url)
+	else:
+		print('Invalid input')
+		
+	
 
 def get_ranked_data(apikey, region):
 	
@@ -111,6 +123,100 @@ def diamond_data(apikey, region, TOTAL_PLAYERS):
 			+ ', DIAMOND I, ' + str(json_data[i]['leaguePoints']) + '\n')
 	file.close()
 	return TOTAL_PLAYERS	
+	
+def tournament_data(url):
+	mh_links = []
+	realm = []
+	match_id = []
+	gameHash = []
+	names_data = []
+	names = []
+	names_list = []
+	
+	
+	
+	data = BeautifulSoup(urlopen(url), 'lxml')
+	collect = data.find_all('a')
+	
+	for it in collect:
+		if 'MH' in it:
+			mh_links.append(it)
+			
+	for i, mh_link_data in enumerate(mh_links):
+	
+		#break links apart
+		tail, scrape = str(mh_links[i]).split('href=\"')
+		scrape, tail = scrape.split('\" rel=\"n')
+		
+		print("Currently extracting data: " + str(i+1) + "/" + str(len(mh_links)) +" Done")
+		
+		#collect realm data and append to list
+		realm_data, tail = scrape.split('/')[5:]
+		realm.append(realm_data)
+		print(realm_data)
+		
+		#collect match_id and gameHash 
+		match_id_data, gameHash_data = tail.split('?gameHash=')
+		
+		if '&amp' in gameHash_data:
+			gameHash_data, tail = gameHash_data.split('&amp')
+		
+		match_id.append(match_id_data)
+		gameHash.append(gameHash_data) 
+		print(match_id_data)
+		print(gameHash_data)
+		
+	tdlinks = data.find_all('td')
+	
+	for it in tdlinks:
+		if('_toggle players' in str(it)):
+			names_data.append(str(it))
+			
+	
+	
+	for i, it in enumerate(names_data):
+			
+		names_track = names_data[i].split("Tooltip:")[1:]
+		
+		for j in range(len(names_track)):
+		
+			names_list.append(names_track[j].split('\"')[0])
+		# print(names_data[i].split('\"')[0])
+		
+		
+		names.append(names_list)
+		names_list = []
+				
+	for i, it in enumerate(match_id):
+		print('Match ID: {} \n RED: {} \n BLUE: {}'.format(match_id[i], names[i*2], names[i*2+1]))
+		print('ACSURL = https://acs.leagueoflegends.com/v1/stats/game/{}/{}/timeline?gameHash={}'.format(realm[i], match_id[i], gameHash[i]))
+		print('MHURL  = https://matchhistory.na.leagueoflegends.com/en/#match-details/{}/{}?gameHash={}\n'.format(realm[i], match_id[i], gameHash[i]))
+		
+			
+		
+	
+	extract_tournament_data(realm, match_id, gameHash)
+	
+def extract_tournament_data(realm, match_id, gameHash):
+	ACSURL = 'https://acs.leagueoflegends.com/v1/stats/game/{realm}/{match_id}/timeline?gameHash={gameHash}'
+	MHURL  = 'https://matchhistory.na.leagueoflegends.com/en/#match-details/{realm}/{match_id}?gameHash={gameHash}'
+
+	
+	
+	
+def _print_regions():
+	print(	'\n BR1  - Brazil \n',
+			'EUN1 - Europe Nordic East \n',
+			'EUW1 - Europe West \n',
+			'JP   - Japan \n',
+			'KR   - Korea \n',
+			'LA1  - Latin America North \n',
+			'LA2  - Latin America South \n',
+			'NA1  - North America \n',
+			'OC1  - Oceanic \n',
+			'TR1  - Tournament Realm \n',
+			'PBE1 - Public Beta Environment \n',
+			'RU   - Russia \n')
 	
 
 main()
